@@ -64,7 +64,13 @@ def get_M(F):
 
     If a character "c" does not exist in F, you may set M[c] = -1
     """
-    pass
+    d, last_ch = {c: -1 for c in ALPHABET}, -1
+    for i in range(len(F)):
+        ch = F[i]
+        if ch != last_ch:
+            d[ch] = i
+            last_ch = ch
+    return d
 
 
 def get_occ(L):
@@ -73,7 +79,14 @@ def get_occ(L):
     string character to a list of integers. If c is a string character and i is an integer, then OCC[c][i] gives
     the number of occurrences of character "c" in the bwt string up to and including index i
     """
-    pass
+    d = {c: [0 for _ in range(len(L))] for c in ALPHABET}
+    for let in ALPHABET:
+        for i in range(len(L)):
+            if let == L[i]:
+                d[let][i] = d[let][i - 1] + 1
+            else:
+                d[let][i] = d[let][i - 1]
+    return d
 
 
 def exact_suffix_matches(p, M, occ):
