@@ -30,7 +30,8 @@ def get_suffix_array(s):
     >>> get_suffix_array('GATAGACA$')
     [8, 7, 5, 3, 1, 6, 4, 0, 2]
     """
-    return [x[1] for x in sorted([(s[i:], i) for i in range(len(s))], key=lambda x: x[0])]
+    print('updated')
+    return [x[1] for x in sorted([(s[i:][:100], i) for i in range(len(s))], key=lambda x: x[0])]
 
 
 def get_bwt(s, sa):
