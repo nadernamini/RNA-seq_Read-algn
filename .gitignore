@@ -1,0 +1,5 @@
+# PyCharms-specific files
+.idea
+
+# iPython Notebook files
+.ipynb_checkpoints
