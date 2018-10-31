@@ -30,7 +30,7 @@ def get_suffix_array(s):
     >>> get_suffix_array('GATAGACA$')
     [8, 7, 5, 3, 1, 6, 4, 0, 2]
     """
-    return [x[0] for x in sorted([(s[i:], i) for i in range(len(s))], key=lambda x: x[0])]
+    return [x[1] for x in sorted([(s[i:], i) for i in range(len(s))], key=lambda x: x[0])]
 
 
 def get_bwt(s, sa):
@@ -133,18 +133,18 @@ def exact_suffix_matches(p, M, occ):
     >>> exact_suffix_matches('AA', M, occ)
     ((1, 11), 1)
     """
-    ooc_arr = []
+    rng, length = None, 0
 
-    def find_next(c):
-        for i in range(ALPHABET.index(c) + 1, len(ALPHABET)):
-            if ALPHABET[i] in M:
-                return M[i]
-        return len(M)
+    sp, ep = 0, -1
 
-    sp, ep = M[p[-1]], find_next(p[-1]) - 1
+    for i in range(len(p) - 1, -1, -1):
+        sp, ep = M[p[i]] + occ[p[i]][sp - 1] if i != (len(p) - 1) else M[p[i]], M[p[i]] + occ[p[i]][ep] - 1
+        if sp > ep:
+            break
+        else:
+            rng, length = (sp, ep + 1), len(p) - i
 
-    for i in range(len(p) - 2, -1, -1):
-        sp = M[p[i]] + occ(p[i], )
+    return rng, length
 
 
 
