@@ -134,11 +134,11 @@ of roughly 11 million bases with the location of genes, isoforms, and exons. We 
 lecture 13 (TODO).
 
 ### Reads
-Our reads are generated from the __transcriptome__ of the given genome. The given genome sequence corresponds to the forward
-strand; We assumed the genes/isoforms/exons are all on the forward strand, and all reads match to the forward strand.
-__There are no insertions or deletions__ (but there could be mismatches) in the reads (i.e. each position in the read
-corresponds to some position in the genome). In addition, the genes/isoforms/exons that some reads are generated from
-have been __hidden__, i.e. we assumed these "unknown" genes will not be passed to our Aligner class in 
+Our reads are generated from the __transcriptome__ of the given genome. The given genome sequence corresponds to the
+forward strand; We assumed the genes/isoforms/exons are all on the forward strand, and all reads match to the forward
+strand. __There are no insertions or deletions__ (but there could be mismatches) in the reads (i.e. each position in the
+read corresponds to some position in the genome). In addition, the genes/isoforms/exons that some reads are generated
+from have been __hidden__, i.e. we assumed these "unknown" genes will not be passed to our Aligner class in 
 `Aligner.__init__`. In addition, some reads could be randomly generated. We have not tested against being able to align
 reads to the transcriptome if we are also not able to align these to the transcriptome. See 
 [Evaluation/Scoring](#evaluationscoring) for more details on what we have been evaluated on. In any read generated from
@@ -167,13 +167,13 @@ but you cannot modify these classes.
 Since it has been specified that there is no insertion or deletion, an alignment of a read to the genome can be thought
 as `k` (usually `k` will be 1 or 2) separate ungapped alignments between the read and the genome (with some start index
 in the read and start index in the genome). Thus, we specified the alignment as a python list of `k` tuples of 
-`(<read start index>, <genome start index>, <length>)`. For example, an alignment of `[(0, 2, 3), (3, 6, 10)]` specifies that
-the 0th position of the read aligns to the 2nd position of the genome for 3 bases, and then the 3rd position of the read
-aligns to the 6th positon of the genome for 10 bases. If we can’t find an alignment for a read, we return an empty list,
-`[]`.
+`(<read_start_index>, <genome_start_index>, <length>)`. For example, an alignment of `[(0, 2, 3), (3, 6, 10)]` specifies
+that the 0th position of the read aligns to the 2nd position of the genome for 3 bases, and then the 3rd position of the
+read aligns to the 6th positon of the genome for 10 bases. If we can’t find an alignment for a read, we return an empty
+list, `[]`.
 
 __Warning:__ if the ranges of two consecutive alignment pieces overlap in the read, i.e. if 
-`<read start 1> + <length 1> > <read start 2>`, the second piece of the alignment will be discarded and the new 
+`<read_start_1> + <length_1> > <read_start_2>`, the second piece of the alignment will be discarded and the new 
 alignment will be scored accordingly. This is checked for with the provided functions in `evaluation.py` (see
 [Evaluation/Scoring](#evaluationscoring)).
 
@@ -186,7 +186,8 @@ we have seen in the Bowtie1 algorithm. If we implemented Bowtie1, we can assume 
 bases.
 - `genes.tab` is a tab-separated file containing three types of rows:
     - a gene row begins with "gene" and specifies the `gene_id` then a semicolon-separated list of `isoform_id`
-    - an isoform row begins with "isoform" and specifies the `isoform_id` then a sorted semicolon-separated list of `exon_id`
+    - an isoform row begins with "isoform" and specifies the `isoform_id` then a sorted semicolon-separated list of
+    `exon_id`
     - an exon row begins with "exon" and specifies the `exon_id`, `start`, and `end` of the exon.
     
     Moreover, the genomic elements that are "unknown" (hidden when the `Aligner` is tested) are prefixed with "unknown".
