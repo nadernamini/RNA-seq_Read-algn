@@ -147,9 +147,6 @@ def exact_suffix_matches(p, M, occ):
     return rng, length
 
 
-
-
-
 MIN_INTRON_SIZE = 20
 MAX_INTRON_SIZE = 10000
 
@@ -167,7 +164,7 @@ class Aligner:
                     so don't stress if you are close. Server is 1.25 times faster than the i7 CPU on my computer
 
         """
-        pass
+        self.sa = get_suffix_array(genome_sequence)
 
     def align(self, read_sequence):
         """
