@@ -1,17 +1,18 @@
 # RNA-Sequencing Read-Alignment Project
 ## Tiffany Chen and Nader Namini Asl
-### CS176-Fall 2018
+### CS176 (Fall 2018)
 
 ## Introduction
 In this project, we have implemented some basic BWT functions that we covered in class, and then implemented a
-simplified version of an aligner for RNA sequencing reads. 
+simplified version of an aligner (what algorithm/method?) for RNA sequencing reads. 
 
 
 ## Rules and Tips
 
-- You can find all required (skeleton) functions/classes/ methods in `project.py`.  You can download all the files as a 
- `.zip` file; _Note_, all the extra files and imported files can be found in the same directory structure as
-  `project.py`.
+- You can find all required (skeleton) functions/classes/methods in `project.py`.  All the python files can be found in
+`project.zip`; We have created and imported other files for helper functions. The util files are in the same directory
+structure as `project.py`; Lastly, we included a brief write-up describing the approach we took for the project in
+`write-up.pdf`.
 - Python 3 was used to develop the project and only the libraries and modules that are provided by the default 
 installation of Python, as well as numpy, have been used.
 - The input and outputs of the functions are specific in the docstring for each function.
@@ -42,7 +43,7 @@ python -m doctest project.py
 on the command line.
 
 ### Functions
-- `get_suffix_array(s)`<br>
+- __`get_suffix_array(s)`__<br>
 Naive implementation of suffix array generation (0-indexed). This code is fast enough so we have enough time in
 `Aligner.__init__` (see bottom).
 
@@ -55,7 +56,7 @@ Naive implementation of suffix array generation (0-indexed). This code is fast e
     >>> get_suffix_array('GATAGACA$')
     [8, 7, 5, 3, 1, 6, 4, 0, 2]
     ```
-- `get_bwt(s, sa)`<br>
+- __`get_bwt(s, sa)`__<br>
 _Input:_
     - `s`: a string terminated by a unique delimiter '$'
     - `sa`: the suffix array of `s`
@@ -63,25 +64,25 @@ _Input:_
     _Output:_
     - `L`: BWT of `s` as a string
 
-- `get_F(L)`<br>
+- __`get_F(L)`__<br>
 _Input:_
     - `L = get_bwt(s)`
     
     _Output:_
     - `F`, first column in `Pi_sorted`
 
-- `get_M(F)`<br>
+- __`get_M(F)`__<br>
 Returns the helper data structure `M` (using the notation from class). `M` is a dictionary that maps character
 strings to start indices. i.e. `M[c]` is the first occurrence of `"c"` in `F`.
 
     If a character `"c"` does not exist in `F`, we set `M[c] = -1`
 
-- `get_occ(L)`<br>
+- __`get_occ(L)`__<br>
 Returns the helper data structure `OCC` (using the notation from class). `OCC` should be a dictionary that maps 
     string character to a list of integers. If `c` is a string character and `i` is an integer, then `OCC[c][i]` gives
     the number of occurrences of character `"c"` in the bwt string up to and including index `i`.
     
-- `exact_suffix_matches(p, M, occ)`<br>
+- __`exact_suffix_matches(p, M, occ)`__<br>
 Find the positions within the suffix array sa of the longest possible suffix of `p` 
 that is a substring of `s` (the original string).
     
@@ -128,3 +129,125 @@ that is a substring of `s` (the original string).
         ```
         
 ## RNA Read Alignment
+In this part of the project, we implemented some method to align RNA reads to genome. We are given a reduced size genome
+of roughly 11 million bases with the location of genes, isoforms, and exons. We used an alignment technique discussed in
+lecture 13 (TODO).
+
+### Reads
+Our reads are generated from the __transcriptome__ of the given genome. The given genome sequence corresponds to the forward
+strand; We assumed the genes/isoforms/exons are all on the forward strand, and all reads match to the forward strand.
+__There is no insertions or deletions__ (but there could be mismatches) in the reads (i.e. each position in the read
+corresponds to some position in the genome). In addition, the genes/isoforms/exons that some reads are generated from
+have been __hidden__, i.e. we assumed these "unknown" genes will not be passed to our Aligner class in Aligner.__init__.
+In addition, some reads could be randomly generated. We have not tested against being able to align reads to the
+transcriptome if we are also not able to align these to the transcriptome. See Evaluation/Scoring for more details on
+what we have been evaluated on. In any read generated from the genome (visible or unknown), there are at most 6
+mismatches, so any alignment with more than 6 mismatches is invalid.
+
+#### Tips
+- __We only align to the forward strand__, i.e. match the read sequence to the genome sequence, there should be no need
+to reverse complement anything
+- There is no insertion or deletion, so we do not output alignments with insertion or deletion.
+- Ideally, we should first align the reads to the transcriptome then the genome.
+- Implementing STAR, we assumeed minimum and maximum intron sizes to be 20 and 10000. We are window sizes of 64000 bases
+from the anchor for my implementation, but we might have used whatever works best.
+
+### `Aligner` Class
+We implemented the `Aligner` class in `project.py`. It will be initialize with genome information, calling
+`Aligner.align` on a number of sequences to get our outputs, we can, then, evaluate the outputs.
+
+#### Initialization/Constructor
+In `Aligner.__init__`, we are given the genome sequence as well as `genes`, which is a list of `Gene` container objects
+that we have defined in `shared.py`. Each `Gene` contains a list of `Isoform` objects that correspond to the gene,
+and each `Isoform` contains a list of `Exon` objects. You could look at how these classes are defined in the file,
+but you cannot modify these classes.
+
+#### Format of an Alignment
+Since it has been specified that there is no insertion or deletion, an alignment of a read to the genome can be thought
+as `k` (usually `k` will be 1 or 2) separate ungapped alignments between the read and the genome (with some start index
+in the read and start index in the genome). Thus, we specified the alignment as a python list of `k` tuples of 
+`(<read start index>, <genome start index>, <length>)`. For example, an alignment of `[(0, 2, 3), (3, 6, 10)]` specifies that
+the 0th position of the read aligns to the 2nd position of the genome for 3 bases, and then the 3rd position of the read
+aligns to the 6th positon of the genome for 10 bases. If we can’t find an alignment for a read, we return an empty list,
+`[]`.
+
+__Warning:__ if the ranges of two consecutive alignment pieces overlap in the read, i.e. if 
+`<read start 1> + <length 1> > <read start 2>`, the second piece of the alignment will be discarded and the new 
+alignment will be scored accordingly. This is checked for with the provided functions in `evaluation.py` (see
+Evaluation/Scoring).
+
+### Test Files
+We are given files containing examples of what kind of genome and read sequences our alignment might be tested on.
+We parsed the files and tried your algorithm on these examples since they were representative of the evaluation set. 
+- `genome.fa` is a FASTA file with the genome sequence.
+- `reads.fa` is a FASTA files with read sequences. Note that the file does not include base quality (PHRED) scores, as
+we have seen in the Bowtie1 algorithm. If we implemented Bowtie1, we can assume that the PHRED score is fixed for all
+bases.
+- `genes.tab` is a tab-separated file containing three types of rows:
+    - a gene row begins with "gene" and specifies the `gene_id` then a semicolon-separated list of `isoform_id`
+    - an isoform row begins with "isoform" and specifies the `isoform_id` then a sorted semicolon-separated list of `exon_id`
+    - an exon row begins with "exon" and specifies the `exon_id`, `start`, and `end` of the exon.
+    
+    Moreover, the genomic elements that are "unknown" (hidden when the `Aligner` is tested) are prefixed with "unknown".
+    If a gene is unknown, its corresponding isoforms and exons will also be marked as unknown. __We parse this file to
+    construct our python set of genes that we feed into our `Aligner.__init__`__. We made sure to construct each `Gene`
+    with all of its corresponding `Isoform` objects, and etc.
+    
+### Evaluation/Scoring
+#### Alignment Prioritization
+We __always__ prioritize aligning reads to known isoforms (in `genes.tab`) with 6 or less mismatches. Only if we can’t
+align with 6 or less mismatches, we try to align reads to other parts of the genome with 6 or less mismatches (as these
+regions may represent unknown genes; there are no genes with unknown exons). We also minimize the number of mismatches,
+but do not choose an alignment to an unknown isoform with less mismatches over an alignment to a known isoform with
+more mismatches (but still 6 or less).
+![](resources/eval.jpg)
+
+If we don’t align some indices of a read, those indices will be counted as mismatches (so it’s always best to align all
+indices of the read). Since there is no insertion or deletion, we will be scoring your alignment based on one-to-one and
+__consecutive__ correspondence to the transcriptome. i.e. if we match a read to an isoform, we make sure that the
+read aligns __consecutively__ to the transcript generated by concatenating the exons within the isoform, there are no
+gaps when aligning to the transcriptome.
+
+### `Evaluation.py`
+To make sure we are able to evaluate the aligner’s alignments, the function used to evaluate the alignments is provided
+in `evaluation.py`. We, first, need to construct a python set of known `Isoform` and a python set of unknown `Isoform`
+objects. We can, then, build an index by calling the `index_isoform_locations` function, and use this index to run 
+`evaluate_alignment` on the alignment that we generate with `Aligner.align`.
+#### Runtime Performance Requirement
+For a 11 million base genome, our `Aligner.__init__` method takes less than 500 seconds to run. Our `Aligner.align`
+method takes on average less than 0.5 seconds per read. In addition, we were penalized if our `Aligner.align` was
+more than 2 times slower than the mean runtime of everyone in the class.
+
+## Submission
+This assignment was due on __Friday 11/16 11:59pm PST__. We created an Instructional account for CS 176 and submitted
+our project there. Only one person per our pair submitted, but we both submitted as well just to be safe. We, each, 
+indicated the name of our partner when prompted by Glookup. As stated above, __our submission keeps all required
+(skeleton) functions/classes/methods in `project.py`__. All the python files can be found in `project.zip`; We have 
+created and imported other files for helper functions. The util files are in the same directory structure as
+`project.py`. We may, depending on the reason, have another chance to submit with a penalty if our first submission
+crashes. Lastly, we included a brief write-up describing the approach we took for the project in `write-up.pdf`.
+
+## Feedback
+Once the assignment was graded, a scores table for all students was released, with the follow information:
+- __SA__: Suffix array subscore based on correctness.
+- __match__: Exact suffix match subscore. Exact suffix matches were graded on correctness.
+- __alignment columns__: Alignments with a reference aligner and our solution were generated, then both evaluated. The
+evaluations were either __gene__, __hidden_gene__, or __unaligned__. Let the rank of gene be 2, hidden_gene be 1, and
+unaligned be 0. Then for each read our score was `[1 - 0.5 * (the aligner’s rank - our rank)]`. Notice we get extra
+points if `our rank > the aligner's rank`.
+    - __fake_alignment__: 75 totally random reads were generated. This column is an average our scores of those 75
+    reads. Everyone has a score of 1 in this column because our rank and the actual rank were all 0 for all the reads,
+    since nothing was aligned to the genome.
+    - __gene_alignment__: There are 1420 reads that are from genes that are given. This column is an average of our
+    score for those reads.
+    - __hidden_gene_alignment__: There are 80 reads generated from genes that are hidden. This column is an average of
+    our score for those reads. 0.6125 is a common score (for people who didn’t align against the genome) because the
+    actual aligner aligns 75% of the reads that come from hidden genes (which are not in the transcriptome), and if we
+    only aligned against against the transcriptome, we will align 0% of these reads.
+    - __weighted_alignment__: This is equal to
+    `0.75 * gene_alignment + 0.2 * hidden_gene_alignment + 0.05 * fake_alignment`
+- __setup_time__: The amount of time it took to call `Aligner.__init__`. We got full credit if `our_time < 500 seconds`
+- __correctness_score__:
+`0.15 * SA + 0.15 * match + 0.5 * weighted_alignment + 0.1 * (setup_time_under_threshold) + 0.1 * (alignment_time_under_threshold)`
+- __overall_score__: equal to `correctness_score` if we’re not late, else `0.85 * correctness_score`
+    
