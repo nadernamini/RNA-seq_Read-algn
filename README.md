@@ -179,7 +179,7 @@ alignment will be scored accordingly. This is checked for with the provided func
 
 ### Test Files
 We are given files containing examples of what kind of genome and read sequences our alignment might be tested on.
-We parsed the files and tried your algorithm on these examples since they were representative of the evaluation set. 
+We parsed the files and tried our algorithm on these examples since they were representative of the evaluation set. 
 - `genome.fa` is a FASTA file with the genome sequence.
 - `reads.fa` is a FASTA files with read sequences. Note that the file does not include base quality (PHRED) scores, as
 we have seen in the Bowtie1 algorithm. If we implemented Bowtie1, we can assume that the PHRED score is fixed for all
