@@ -13,6 +13,7 @@
 
 import sys  # DO NOT EDIT THIS
 from shared import *
+import numpy as np
 
 ALPHABET = [TERMINATOR] + BASES
 
@@ -30,8 +31,49 @@ def get_suffix_array(s):
     >>> get_suffix_array('GATAGACA$')
     [8, 7, 5, 3, 1, 6, 4, 0, 2]
     """
-    print('updated')
-    return [x[1] for x in sorted([(s[i:][:100], i) for i in range(len(s))], key=lambda x: x[0])]
+    # print('updated itt')
+    return radix_sorting([(s[i:i + 100], i) for i in range(len(s))], 100)
+
+
+def len_check(bs):
+    for b in bs:
+        if len(b) > 1:
+            return False
+    return True
+
+
+def lex_order(bs):
+    sa = []
+    for lst in bs:
+        sa.extend([j for _, _, j in lst])
+    return sa
+
+
+def radix_sorting(ss, k):
+    new_ss = [(s[0], s + TERMINATOR * (k - len(s)), idx) for s, idx in ss]
+    bins = new_ss
+    buckets = [bins]
+
+    for i in range(1, k):
+        # print(buckets)
+        idx = 0
+        while idx < len(buckets):
+            new_buckets = {}
+            for iddx in range(len(buckets[idx])):
+                if buckets[idx][iddx][0] in new_buckets:
+                    new_buckets[buckets[idx][iddx][0]].append(
+                        (buckets[idx][iddx][1][i], buckets[idx][iddx][1], int(buckets[idx][iddx][2])))
+                else:
+                    new_buckets[buckets[idx][iddx][0]] = [
+                        (buckets[idx][iddx][1][i], buckets[idx][iddx][1], int(buckets[idx][iddx][2]))]
+
+            lst = [new_buckets[k] for k in sorted(new_buckets)]
+            buckets[idx:idx + 1] = lst
+            idx += len(lst)
+        if len_check(buckets):
+            return lex_order(buckets)
+
+
 
 
 def get_bwt(s, sa):
