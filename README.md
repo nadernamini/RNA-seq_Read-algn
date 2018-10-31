@@ -147,11 +147,11 @@ invalid.
 
 #### Tips
 - __We only align to the forward strand__, i.e. match the read sequence to the genome sequence, there should be no need
-to reverse complement anything
+to reverse complement anything.
 - There is no insertion or deletion, so we do not output alignments with insertion or deletion.
 - Ideally, we should first align the reads to the transcriptome then the genome.
-- Implementing STAR, we assumeed minimum and maximum intron sizes to be 20 and 10000. We are window sizes of 64000 bases
-from the anchor for my implementation, but we might have used whatever works best.
+- Implementing STAR, we assumeed minimum and maximum intron sizes to be 20 and 10000. We are using window sizes of 64000 bases
+from the anchor for our implementation, but we might have used whatever worked best.
 
 ### `Aligner` Class
 We implemented the `Aligner` class in `project.py`. It will be initialized with genome information, calling
