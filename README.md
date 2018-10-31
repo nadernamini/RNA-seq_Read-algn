@@ -141,7 +141,7 @@ corresponds to some position in the genome). In addition, the genes/isoforms/exo
 have been __hidden__, i.e. we assumed these "unknown" genes will not be passed to our Aligner class in 
 `Aligner.__init__`. In addition, some reads could be randomly generated. We have not tested against being able to align
 reads to the transcriptome if we are also not able to align these to the transcriptome. See 
-[Evaluation/Scoring](#evaluation/Scoring) for more details on what we have been evaluated on. In any read generated from
+[Evaluation/Scoring](#evaluationscoring) for more details on what we have been evaluated on. In any read generated from
 the genome (visible or unknown), there are at most 6 mismatches, so any alignment with more than 6 mismatches is
 invalid.
 
@@ -175,7 +175,7 @@ aligns to the 6th positon of the genome for 10 bases. If we can’t find an alig
 __Warning:__ if the ranges of two consecutive alignment pieces overlap in the read, i.e. if 
 `<read start 1> + <length 1> > <read start 2>`, the second piece of the alignment will be discarded and the new 
 alignment will be scored accordingly. This is checked for with the provided functions in `evaluation.py` (see
-[Evaluation/Scoring](#evaluation/Scoring)).
+[Evaluation/Scoring](#evaluationscoring)).
 
 ### Test Files
 We are given files containing examples of what kind of genome and read sequences our alignment might be tested on.
