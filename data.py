@@ -2,7 +2,7 @@ from Bio import SeqIO
 import numpy as np
 import csv
 from shared import *
-from project import Aligner
+from project_nader import Aligner
 from time import time
 
 
@@ -65,6 +65,8 @@ if __name__ == "__main__":
     reads = read_reads()
     genome_sequence = read_genome()
     known_genes = read_known_genes()
+    for gene in known_genes:
+        print(known_genes[gene].isoforms)
 
     print("length of the genome sequence: " + str(len(genome_sequence)))
 

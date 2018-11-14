@@ -204,6 +204,8 @@ class Aligner:
 
         """
         self.sa = get_suffix_array(genome_sequence)
+        L = get_bwt(genome_sequence, self.sa)
+        self.occ, self.M = get_occ(L), get_M(get_F(L))
         self.known_genes = known_genes
 
     def align(self, read_sequence):
@@ -223,6 +225,4 @@ class Aligner:
 
         Time limit: 0.5 seconds per read on average on the provided data.
         """
-        # for gene in self.known_genes:
-
         pass
