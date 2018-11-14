@@ -1,19 +1,20 @@
-""" 
+"""
     RNA Alignment Assignment
-    
+
     Implement each of the functions below using the algorithms covered in class.
     You can construct additional functions and data structures but you should not
     change the functions' APIs.
 
     You will be graded on the helper function implementations as well as the RNA alignment, although
     you do not have to use your helper function.
-    
+
     *** Make sure to comment out any print statement so as not to interfere with the grading script
 """
 
 import sys  # DO NOT EDIT THIS
 from shared import *
 import numpy as np
+from time import time
 
 ALPHABET = [TERMINATOR] + BASES
 
@@ -25,55 +26,50 @@ def get_suffix_array(s):
 
     Input:
         s: a string of the alphabet ['A', 'C', 'G', 'T'] already terminated by a unique delimiter '$'
-    
+
     Output: list of indices representing the suffix array
 
     >>> get_suffix_array('GATAGACA$')
     [8, 7, 5, 3, 1, 6, 4, 0, 2]
     """
-    # print('updated itt')
-    return radix_sorting([(s[i:i + 100], i) for i in range(len(s))], 100)
-
-
-def len_check(bs):
-    for b in bs:
-        if len(b) > 1:
-            return False
-    return True
+    el, k = len(s), 1000
+    return radix_sorting(s, [(i * 100, (i + 1) * 100) for i in range(k // 100)])
 
 
 def lex_order(bs):
     sa = []
     for lst in bs:
-        sa.extend([j for _, _, j in lst])
+        sa.extend(lst)
     return sa
 
 
-def radix_sorting(ss, k):
-    new_ss = [(s[0], s + TERMINATOR * (k - len(s)), idx) for s, idx in ss]
-    bins = new_ss
-    buckets = [bins]
+def radix_sorting(ss, kk):
+    src = ss
+    buckets = [list(range(len(src)))]
+    buckets_sort = []
 
-    for i in range(1, k):
+    for s_i, e_i in kk:
         # print(buckets)
-        idx = 0
-        while idx < len(buckets):
+        len_check, t = True, -time()
+        for idx in range(len(buckets)):
             new_buckets = {}
             for iddx in range(len(buckets[idx])):
-                if buckets[idx][iddx][0] in new_buckets:
-                    new_buckets[buckets[idx][iddx][0]].append(
-                        (buckets[idx][iddx][1][i], buckets[idx][iddx][1], int(buckets[idx][iddx][2])))
+                indx = buckets[idx][iddx]
+                ky = src[indx + s_i: indx + e_i]
+                if ky in new_buckets:
+                    new_buckets[ky].append(buckets[idx][iddx])
                 else:
-                    new_buckets[buckets[idx][iddx][0]] = [
-                        (buckets[idx][iddx][1][i], buckets[idx][iddx][1], int(buckets[idx][iddx][2]))]
+                    new_buckets[ky] = [buckets[idx][iddx]]
 
-            lst = [new_buckets[k] for k in sorted(new_buckets)]
-            buckets[idx:idx + 1] = lst
-            idx += len(lst)
-        if len_check(buckets):
+            for k in sorted(new_buckets):
+                if len_check and len(new_buckets[k]) > 1:
+                    len_check = False
+                buckets_sort.append(new_buckets[k])
+
+        buckets, buckets_sort = buckets_sort, []
+        # print(e_i, time() + t, len(buckets), len_check)
+        if len_check:
             return lex_order(buckets)
-
-
 
 
 def get_bwt(s, sa):
@@ -118,7 +114,7 @@ def get_M(F):
 
 def get_occ(L):
     """
-    Returns the helper data structure OCC (using the notation from class). OCC should be a dictionary that maps 
+    Returns the helper data structure OCC (using the notation from class). OCC should be a dictionary that maps
     string character to a list of integers. If c is a string character and i is an integer, then OCC[c][i] gives
     the number of occurrences of character "c" in the bwt string up to and including index i
     """
@@ -134,9 +130,9 @@ def get_occ(L):
 
 def exact_suffix_matches(p, M, occ):
     """
-    Find the positions within the suffix array sa of the longest possible suffix of p 
+    Find the positions within the suffix array sa of the longest possible suffix of p
     that is a substring of s (the original string).
-    
+
     Note that such positions must be consecutive, so we want the range of positions.
 
     Input:
@@ -200,23 +196,24 @@ class Aligner:
         Initializes the aligner. Do all time intensive set up here. i.e. build suffix array.
 
         genome_sequence: a string (NOT TERMINATED BY '$') representing the bases of the of the genome
-        known_genes: a python set of Gene objects (see shared.py) that represent known genes. You can get the isoforms 
+        known_genes: a python set of Gene objects (see shared.py) that represent known genes. You can get the isoforms
                      and exons from a Gene object
 
-        Time limit: 500 seconds maximum on the provided data. Note that our server is probably faster than your machine, 
+        Time limit: 500 seconds maximum on the provided data. Note that our server is probably faster than your machine,
                     so don't stress if you are close. Server is 1.25 times faster than the i7 CPU on my computer
 
         """
         self.sa = get_suffix_array(genome_sequence)
+        self.known_genes = known_genes
 
     def align(self, read_sequence):
         """
-        Returns an alignment to the genome sequence. An alignment is a list of pieces. 
-        Each piece consists of a start index in the read, a start index in the genome, and a length 
+        Returns an alignment to the genome sequence. An alignment is a list of pieces.
+        Each piece consists of a start index in the read, a start index in the genome, and a length
         indicating how many bases are aligned in this piece. Note that mismatches are count as "aligned".
 
-        Note that <read_start_2> >= <read_start_1> + <length_1>. If your algorithm produces an alignment that 
-        violates this, we will remove pieces from your alignment arbitrarily until consecutive pieces 
+        Note that <read_start_2> >= <read_start_1> + <length_1>. If your algorithm produces an alignment that
+        violates this, we will remove pieces from your alignment arbitrarily until consecutive pieces
         satisfy <read_start_2> >= <read_start_1> + <length_1>
 
         Return value must be in the form (also see the project pdf):

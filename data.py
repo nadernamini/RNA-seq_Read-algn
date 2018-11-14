@@ -66,6 +66,8 @@ if __name__ == "__main__":
     genome_sequence = read_genome()
     known_genes = read_known_genes()
 
+    print("length of the genome sequence: " + str(len(genome_sequence)))
+
     t = -time()
     aligner = Aligner(genome_sequence, known_genes)
     t += time()
