@@ -221,7 +221,7 @@ method takes on average less than 0.5 seconds per read. In addition, we were pen
 more than 2 times slower than the mean runtime of everyone in the class.
 
 ## Submission
-This assignment was due on __Friday 11/16 11:59pm PST__. We created an Instructional account for CS 176 and submitted
+This assignment was due on __Monday 11/26 11:59pm PST__. We created an Instructional account for CS 176 and submitted
 our project there. Only one person per our pair submitted, but we both submitted as well just to be safe. We, each, 
 indicated the name of our partner when prompted by Glookup. As stated above, __our submission keeps all required
 (skeleton) functions/classes/methods in `project.py`__. All the python files can be found in `project.zip`; We have 
