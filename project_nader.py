@@ -203,7 +203,7 @@ class Aligner:
                     so don't stress if you are close. Server is 1.25 times faster than the i7 CPU on my computer
 
         """
-        self.sa = get_suffix_array(genome_sequence)
+        self.sa = get_suffix_array(genome_sequence + TERMINATOR)
         L = get_bwt(genome_sequence, self.sa)
         self.occ, self.M = get_occ(L), get_M(get_F(L))
         self.known_genes = known_genes
