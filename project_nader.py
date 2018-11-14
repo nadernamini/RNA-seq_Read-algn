@@ -223,4 +223,6 @@ class Aligner:
 
         Time limit: 0.5 seconds per read on average on the provided data.
         """
+        # for gene in self.known_genes:
+
         pass
