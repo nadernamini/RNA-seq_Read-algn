@@ -255,7 +255,7 @@ class Aligner:
             while j < len(read):
                 if isoform[i + j] != read[j]:
                     mismatches += 1
-                if mismatches > 6:
+                if mismatches > MAX_NUM_MISMATCHES:
                     break
                 j += 1
             if j == len(read) and mismatches < match[1]:
@@ -283,8 +283,8 @@ class Aligner:
         read_len -= exons[idx][2] - (align_start - exons[idx][0])
         while read_len > 0:
             idx += 1
-            align.append((0, exons[idx][1] + (align_start - exons[idx][0]),
-                          read_len if read_len + (align_start - exons[idx][0]) <= exons[idx][2]
-                          else exons[idx][2] - (align_start - exons[idx][0])))
-            read_len -= exons[idx][2] - (align_start - exons[idx][0])
+            align.append((align[-1][0] + align[-1][2], exons[idx][1],
+                          read_len if read_len <= exons[idx][2]
+                          else exons[idx][2]))
+            read_len -= exons[idx][2]
         return align if len(align) <= k else -1
