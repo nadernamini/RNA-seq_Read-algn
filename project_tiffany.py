@@ -13,6 +13,8 @@
 
 import sys # DO NOT EDIT THIS
 from shared import *
+from itertools import product
+from math import log
 
 ALPHABET = [TERMINATOR] + BASES
 RADIX = 100
@@ -181,22 +183,27 @@ def exact_suffix_matches(p, M, occ):
     >>> exact_suffix_matches('AA', M, occ)
     ((1, 11), 1)
     """
+    curr_range = None
     length = len(p)
+
     sp = M[p[length - 1]]
+    if sp == -1:
+        return curr_range, 0
     ep = set_ep(p[length - 1], M, occ)
+
     for i in range(length - 2, -1, -1):
         curr_range = (sp, ep + 1)
         sp = M[p[i]] + occ[p[i]][sp - 1]
         ep = M[p[i]] + occ[p[i]][ep] - 1
         if sp > ep:
             return curr_range, length - i - 1
-    if sp > ep:
-        return curr_range, length - i - 1
+
     return (sp, ep + 1), length
 
 
 MIN_INTRON_SIZE = 20
 MAX_INTRON_SIZE = 10000
+SEPARATOR = '#'
 
 
 class Aligner:
@@ -212,14 +219,231 @@ class Aligner:
                     so don't stress if you are close. Server is 1.25 times faster than the i7 CPU on my computer
 
         """
-        s = genome_sequence + TERMINATOR
+        self.genome = genome_sequence
+        self.genes = known_genes
+        self.transcriptome = self.construct_transcriptome()
+        s = genome_sequence[::-1] + TERMINATOR
         self.sa = get_suffix_array(s)
         L = get_bwt(s, self.sa)
         F = get_F(L)
         self.M = get_M(F)
         self.occ = get_occ(L)
-        self.genes = known_genes
 
+    def construct_transcriptome(self):
+        transcriptome = []
+        for gene in self.genes:
+            for isoform in gene.isoforms:
+                transcript = []
+                positions = {}
+                idx = 0
+                for exon in isoform.exons:
+                    length = exon.end - exon.start
+                    transcript.append(self.genome[exon.start:exon.end])
+                    positions.update({idx + i: exon.start + i for i in range(length)})
+                    idx += (length + 1)
+                transcript = SEPARATOR.join(transcript)
+                transcriptome.append((transcript, positions))
+        return transcriptome
+
+    def find_seeds(self, reversed_read, len_read, len_string, sa, M, occ):
+        seed_matches = []
+        mismatches = -1
+        i = len_read
+        indices = []
+
+        while i > 0:
+            _range, length = exact_suffix_matches(reversed_read[:i], M, occ)
+            if _range is None:
+                mismatches += 1
+                if mismatches > MAX_NUM_MISMATCHES:
+                    return []
+                seed_matches.append([(len_read - i, -1, 0)])
+                length = 1
+            else:
+                sp, ep = _range
+                if len(indices) == 0:
+                    seed_matches.append([(len_read-i, len_string-sa[idx]-length, length) for idx in range(sp, ep)])
+                    indices = [len_string - sa[idx] for idx in range(sp, ep)]
+                else:
+                    matches = [(len_read - i, len_string - sa[idx] - length, length) for idx in range(sp, ep)
+                               if (len_string - sa[idx] - length) in indices]
+                    if len(matches) > 0:
+                        seed_matches.append(matches)
+                    else:
+                        seed_matches.append([(len_read - i, len_string - sa[sp] - length, length)])
+                    indices = [i + length for i in indices]
+
+            mismatches += 1
+            if mismatches > MAX_NUM_MISMATCHES:
+                return []
+            i -= length
+
+        return seed_matches
+
+    def similarity(self, seq1, seq2):
+        if len(seq2) < len(seq1):
+            return MAX_NUM_MISMATCHES
+        score = 0
+        for i in range(len(seq1)):
+            if seq1[i] != seq2[i]:
+                score += 1
+        return score
+
+    def get_transcriptome_alignment(self, read_sequence, seed_matches, len_read, transcript, positions):
+        genomic_windows = product(*seed_matches)
+        best_alignment = []
+        best_score = -len_read
+        len_transcipt = len(transcript)
+
+        for window in genomic_windows:
+
+            alignment = []
+            score = len_read
+            mismatches = 0
+            next_idx = window[0][1]
+            start_read_idx = window[0][0]
+            start_genome_idx = positions[window[0][1]]
+            length = 0
+            aligned = True
+
+            for seed in window:
+
+                if next_idx >= len_transcipt:
+                    aligned = False
+                    break
+                elif transcript[next_idx] == SEPARATOR:
+                    next_idx += 1
+
+                read_idx, transcript_idx, len_match = seed
+
+                if len_match == 0:
+                    mismatches += 1
+                    if mismatches > MAX_NUM_MISMATCHES:
+                        aligned = False
+                        break
+                    next_idx += 1
+                    score -= 1
+                    length += 1
+                elif transcript_idx != next_idx:
+                    sim = self.similarity(read_sequence[read_idx:read_idx + len_match],
+                                          transcript[next_idx:next_idx + len_match])
+                    if sim + mismatches <= MAX_NUM_MISMATCHES:
+                        transcript_idx = next_idx
+                        mismatches += sim
+                        score -= sim
+                    else:
+                        aligned = False
+                        break
+
+                if start_genome_idx + length != positions[transcript_idx]:
+                    alignment.append((start_read_idx, start_genome_idx, length))
+                    start_read_idx = read_idx
+                    start_genome_idx = positions[transcript_idx]
+                    length = 0
+
+                next_idx += len_match
+                length += len_match
+
+            if aligned is True:
+                alignment.append((start_read_idx, start_genome_idx, length))
+
+                if len(alignment) > 0 and score > best_score:
+                    best_alignment = alignment
+                    best_score = score
+
+        return best_alignment, best_score
+
+    def align_transcriptome(self, read_sequence, reversed_read, len_read):
+        best_alignment = []
+        best_score = -len_read
+
+        for transcript, positions in self.transcriptome:
+
+            s = transcript[::-1] + TERMINATOR
+            sa = get_suffix_array(s)
+            L = get_bwt(s, sa)
+            M = get_M(get_F(L))
+            occ = get_occ(L)
+
+            seed_matches = self.find_seeds(reversed_read, len_read, len(transcript), sa, M, occ)
+            if len(seed_matches) == 0:
+                continue
+            alignment, score = self.get_transcriptome_alignment(read_sequence, seed_matches, len_read,
+                                                                transcript, positions)
+
+            if len(alignment) > 0 and score > best_score:
+                best_alignment = alignment
+                best_score = score
+
+        return best_alignment
+
+    def get_genome_alignment(self, read_sequence, seed_matches, len_read):
+        genomic_windows = product(*seed_matches)
+        best_alignment = []
+        best_score = -len_read
+
+        for window in genomic_windows:
+
+            alignment = []
+            score = len_read
+            mismatches = 0
+            next_idx = window[0][1]
+            start_read_idx = window[0][0]
+            start_genome_idx = window[0][1]
+            length = 0
+            aligned = True
+
+            for seed in window:
+
+                read_idx, string_idx, len_match = seed
+
+                if len_match == 0:
+                    mismatches += 1
+                    if mismatches > MAX_NUM_MISMATCHES:
+                        aligned = False
+                        break
+                    next_idx += 1
+                    score -= 1
+                    length += 1
+                elif string_idx != next_idx:
+                    diff = string_idx - next_idx
+                    if MIN_INTRON_SIZE <= diff <= MAX_INTRON_SIZE:
+                        score -= log(diff)
+                        next_idx += diff
+                        alignment.append((start_read_idx, start_genome_idx, length))
+                        start_read_idx = read_idx
+                        start_genome_idx = string_idx
+                        length = 0
+                    else:
+                        sim = self.similarity(read_sequence[read_idx:read_idx + len_match],
+                                              self.genome[next_idx:next_idx + len_match])
+                        if sim + mismatches <= MAX_NUM_MISMATCHES:
+                            mismatches += sim
+                            score -= sim
+                        else:
+                            aligned = False
+                            break
+
+                next_idx += len_match
+                length += len_match
+
+            if aligned is True:
+                alignment.append((start_read_idx, start_genome_idx, length))
+
+                if len(alignment) > 0 and score > best_score:
+                    best_alignment = alignment
+                    best_score = score
+
+        return best_alignment, best_score
+
+    def align_genome(self, read_sequence, reversed_read, len_read):
+
+        seed_matches = self.find_seeds(reversed_read, len_read, len(self.genome), self.sa, self.M, self.occ)
+        if len(seed_matches) == 0:
+            return []
+        alignment, score = self.get_genome_alignment(read_sequence, seed_matches, len_read)
+
+        return alignment
 
     def align(self, read_sequence):
         """
@@ -238,4 +462,24 @@ class Aligner:
 
         Time limit: 0.5 seconds per read on average on the provided data.
         """
-        pass
+        len_read = len(read_sequence)
+        reversed_read = read_sequence[::-1]
+
+        alignment = self.align_transcriptome(read_sequence, reversed_read, len_read)
+        if len(alignment) > 0:
+            print("\nAligned to transcriptome")
+            print(read_sequence)
+            print(''.join([self.genome[i:i+l] for _, i, l in alignment]))
+            print(alignment)
+            return alignment
+
+        alignment = self.align_genome(read_sequence, reversed_read, len_read)
+        if len(alignment) > 0:
+            print("\nAligned to genome")
+            print(read_sequence)
+            print(''.join([self.genome[i:i + l] for _, i, l in alignment]))
+            print(alignment)
+        else:
+            print("\nUnaligned")
+            print(read_sequence)
+        return alignment
