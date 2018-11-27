@@ -207,6 +207,16 @@ class Aligner:
         L = get_bwt(genome_sequence, self.sa)
         self.occ, self.M = get_occ(L), get_M(get_F(L))
         self.known_genes = known_genes
+        self.known_transcriptome = {}
+        for gene in known_genes:
+            self.known_transcriptome[gene] = {}
+            for iso in known_genes[gene].isoforms:
+                isoform, exons, total_len = '', [], 0
+                for ex in iso.exons:
+                    isoform += genome_sequence[ex.start: ex.end]
+                    exons.append((total_len, ex.start, ex.end - ex.start))
+                    total_len += ex.end - ex.start
+                self.known_transcriptome[gene][iso] = [isoform, exons]
 
     def align(self, read_sequence):
         """
@@ -218,7 +228,7 @@ class Aligner:
         violates this, we will remove pieces from your alignment arbitrarily until consecutive pieces
         satisfy <read_start_2> >= <read_start_1> + <length_1>
 
-        Return value must be in the form (also see the project pdf):
+        Return value must be in the form (also see the Project.pdf):
         [(<read_start_1>, <reference_start_1, length_1), (<read_start_2>, <reference_start_2, length_2), ...]
 
         If no good matches are found: return the best match you can find or return []
@@ -226,3 +236,55 @@ class Aligner:
         Time limit: 0.5 seconds per read on average on the provided data.
         """
         pass
+
+    def align_to_transcriptome(self, read_sequence):
+        match = (-1, float("inf"))
+        for gene in self.known_transcriptome:
+            for iso in self.known_transcriptome[gene]:
+                alignment, mismatches = Aligner.align_to_isoform(read_sequence, self.known_transcriptome[gene][iso][0],
+                                                                 self.known_transcriptome[gene][iso][1])
+                if alignment != -1 and mismatches <= match[1]:
+                    match = (alignment, mismatches)
+        return match
+
+    @staticmethod
+    def align_to_isoform(read, isoform, exons):
+        match = (-1, float("inf"))
+        for i in range(len(isoform) - len(read) + 1):
+            j, mismatches = 0, 0
+            while j < len(read):
+                if isoform[i + j] != read[j]:
+                    mismatches += 1
+                if mismatches > 6:
+                    break
+                j += 1
+            if j == len(read) and mismatches < match[1]:
+                match = (i, mismatches)
+        return match if match[0] == -1 else (Aligner.find_alignment(len(read), match[0], exons), match[1])
+
+    @staticmethod
+    def find_alignment(read_len, align_start, exons):
+        # maximum number of un-gapped alignments
+        k = 3
+
+        def find_start_location(lo, hi):
+            mid = (lo + hi) // 2
+            if exons[mid][0] <= align_start < exons[mid][0] + exons[mid][2]:
+                return mid
+            elif exons[mid][0] + exons[mid][2] <= align_start:
+                return find_start_location(mid + 1, hi)
+            else:
+                return find_start_location(lo, mid - 1)
+
+        idx = find_start_location(0, len(exons))
+        align = [(0, exons[idx][1] + (align_start - exons[idx][0]),
+                  read_len if read_len + (align_start - exons[idx][0]) <= exons[idx][2]
+                  else exons[idx][2] - (align_start - exons[idx][0]))]
+        read_len -= exons[idx][2] - (align_start - exons[idx][0])
+        while read_len > 0:
+            idx += 1
+            align.append((0, exons[idx][1] + (align_start - exons[idx][0]),
+                          read_len if read_len + (align_start - exons[idx][0]) <= exons[idx][2]
+                          else exons[idx][2] - (align_start - exons[idx][0])))
+            read_len -= exons[idx][2] - (align_start - exons[idx][0])
+        return align if len(align) <= k else -1
