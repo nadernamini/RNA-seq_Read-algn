@@ -2,7 +2,7 @@ from Bio import SeqIO
 import numpy as np
 import csv
 from shared import *
-from project_nader import Aligner
+from project import Aligner
 from time import time
 
 
