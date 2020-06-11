@@ -4,7 +4,7 @@
 
 ## Introduction
 In this project, we have implemented some basic BWT functions that we covered in class, and then implemented a
-simplified version of an aligner (what algorithm/method?) for RNA sequencing reads. 
+simplified version of an aligner for RNA sequencing reads. 
 
 
 ## Rules and Tips
@@ -177,6 +177,11 @@ __Warning:__ if the ranges of two consecutive alignment pieces overlap in the re
 alignment will be scored accordingly. This is checked for with the provided functions in `evaluation.py` (see
 [Evaluation/Scoring](#evaluationscoring)).
 
+### Alignment Strategy
+Our approach to the RNA sequencing project involved first alignment to the annotated transcriptome and then for the un-aligned reads, alignment to the genome. We created all the isoforms of all the genes and tried to align to the reads without any gaps, greedily choosing the mismatches, and bounding them at `MAX_NUM_MISMATCHES`. This meant that we checked the equality of the read sequence and each isoform element-by-element starting at index 0 and counted every inequality as a mismatch and terminated if the number of mismatches exceeded `MAXNUM_MISMATCHES`. This gave us a fast runtime that was on average less than `0.5s`.
+
+For the reads that did not align to the annotated transcriptome, we tried to align to the genome. After experimentation and evaluating our alignments with the alignment to hidden gene transcriptome, we found it best to limit the number of parts of our alignment to the genome to 1 as that would cover more than half of the hidden alignments. However, to find a _single_ ungapped alignment for the reads to genome, we had to consider all the permutations of the read sequence. This meant that we went through the read sequence element by element and considered all the possible permutations of the bases at every index that would result in an exact match in the genome sequence. We achieved this by using a recursive function (`find_max_so_far`) that is documented in `project.py` along with all the helper functions used in the alignment.
+
 ### Test Files
 We are given files containing examples of what kind of genome and read sequences our alignment might be tested on.
 We parsed the files and tried our algorithm on these examples since they were representative of the evaluation set. 
@@ -252,4 +257,3 @@ points if `our rank > the aligner's rank`.
 - __correctness_score__:
 `0.15 * SA + 0.15 * match + 0.5 * weighted_alignment + 0.1 * (setup_time_under_threshold) + 0.1 * (alignment_time_under_threshold)`
 - __overall_score__: equal to `correctness_score` if we’re not late, else `0.85 * correctness_score`
-    
